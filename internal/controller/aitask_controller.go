@@ -461,7 +461,7 @@ func (r *AITaskReconciler) createExecutionJob(ctx context.Context, aiTask *scott
 	// Parse timeout (default to 15 minutes if not specified)
 	timeoutSeconds := int64(900) // 15 minutes
 	if aiTask.Spec.Timeout != nil {
-		timeoutSeconds = int64(aiTask.Spec.Timeout.Duration.Seconds())
+		timeoutSeconds = int64(aiTask.Spec.Timeout.Seconds())
 	}
 
 	// Configure backoff limit based on retry policy
