@@ -1,0 +1,91 @@
+name: Build and Push Images
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Daily build at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  REGISTRY: ghcr.io
+  MANAGER_IMAGE_NAME: ${{ github.repository }}/manager
+  CLAUDECODE_IMAGE_NAME: ${{ github.repository }}/claudecode
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata for manager image
+      id: manager-meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.MANAGER_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=schedule,pattern=nightly
+          type=sha,prefix=sha-
+          type=raw,value=latest
+
+    - name: Extract metadata for claudecode image
+      id: claudecode-meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.CLAUDECODE_IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=schedule,pattern=nightly
+          type=sha,prefix=sha-
+          type=raw,value=latest
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push manager image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.manager-meta.outputs.tags }}
+        labels: ${{ steps.manager-meta.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push claudecode image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.claudecode
+        push: true
+        tags: ${{ steps.claudecode-meta.outputs.tags }}
+        labels: ${{ steps.claudecode-meta.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Output image digests
+      run: |
+        echo "Manager image tags: ${{ steps.manager-meta.outputs.tags }}"
+        echo "Claudecode image tags: ${{ steps.claudecode-meta.outputs.tags }}"
