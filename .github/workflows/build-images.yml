@@ -42,8 +42,7 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.MANAGER_IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=schedule,pattern=nightly
+          type=schedule,pattern=latest
           type=sha,prefix=sha-
           type=raw,value=latest
 
@@ -53,8 +52,7 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.CLAUDECODE_IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=schedule,pattern=nightly
+          type=schedule,pattern=latest
           type=sha,prefix=sha-
           type=raw,value=latest
 
