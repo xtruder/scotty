@@ -146,8 +146,10 @@ var _ = Describe("AITask Controller", func() {
 		It("should initialize status to Pending on first reconcile", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &AITaskReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:                 k8sClient,
+				Scheme:                 k8sClient.Scheme(),
+				DefaultClaudeCodeImage: "ghcr.io/xtruder/scotty/claudecode:latest",
+				DefaultOpenCodeImage:   "xtruder/scotty-opencode:latest",
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
@@ -175,8 +177,10 @@ var _ = Describe("AITask Controller", func() {
 		It("should create a Job when AITask is in Pending phase", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &AITaskReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:                 k8sClient,
+				Scheme:                 k8sClient.Scheme(),
+				DefaultClaudeCodeImage: "ghcr.io/xtruder/scotty/claudecode:latest",
+				DefaultOpenCodeImage:   "xtruder/scotty-opencode:latest",
 			}
 
 			// First reconcile initializes status
@@ -225,8 +229,10 @@ var _ = Describe("AITask Controller", func() {
 		It("should create RBAC resources for AITask permissions", func() {
 			By("Creating and reconciling AITask")
 			controllerReconciler := &AITaskReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:                 k8sClient,
+				Scheme:                 k8sClient.Scheme(),
+				DefaultClaudeCodeImage: "ghcr.io/xtruder/scotty/claudecode:latest",
+				DefaultOpenCodeImage:   "xtruder/scotty-opencode:latest",
 			}
 
 			// Initialize and create RBAC resources
@@ -267,8 +273,10 @@ var _ = Describe("AITask Controller", func() {
 		It("should validate Job configuration matches AITask spec", func() {
 			By("Creating and reconciling AITask")
 			controllerReconciler := &AITaskReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:                 k8sClient,
+				Scheme:                 k8sClient.Scheme(),
+				DefaultClaudeCodeImage: "ghcr.io/xtruder/scotty/claudecode:latest",
+				DefaultOpenCodeImage:   "xtruder/scotty-opencode:latest",
 			}
 
 			// Initialize and create job
@@ -311,7 +319,7 @@ var _ = Describe("AITask Controller", func() {
 
 			container := podSpec.Containers[0]
 			Expect(container.Name).To(Equal("agent"))
-			Expect(container.Image).To(Equal("xtruder/scotty-claudecode:latest"))
+			Expect(container.Image).To(Equal("ghcr.io/xtruder/scotty/claudecode:latest"))
 
 			By("Verifying command arguments")
 			args := container.Args

@@ -105,6 +105,11 @@ type AITaskSpec struct {
 	// +kubebuilder:validation:Required
 	Agent AgentType `json:"agent"`
 
+	// Image specifies the container image to use for the AI agent
+	// If not specified, defaults to the appropriate image for the agent type
+	// +optional
+	Image string `json:"image,omitempty"`
+
 	// Prompt contains the task description or prompt for the AI agent
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1

@@ -40,7 +40,9 @@ import (
 // AITaskReconciler reconciles a AITask object
 type AITaskReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme                 *runtime.Scheme
+	DefaultClaudeCodeImage string
+	DefaultOpenCodeImage   string
 }
 
 // +kubebuilder:rbac:groups=scotty.x-truder.net,resources=aitasks,verbs=get;list;watch;create;update;patch;delete
@@ -449,13 +451,19 @@ func (r *AITaskReconciler) createExecutionJob(ctx context.Context, aiTask *scott
 
 	// Determine agent image
 	var image string
-	switch aiTask.Spec.Agent {
-	case scottyv1alpha1.AgentTypeClaudeCode:
-		image = "xtruder/scotty-claudecode:latest"
-	case scottyv1alpha1.AgentTypeOpenCode:
-		image = "xtruder/scotty-opencode:latest"
-	default:
-		return nil, fmt.Errorf("unsupported agent type: %s", aiTask.Spec.Agent)
+
+	// Priority: 1) AITask.Spec.Image, 2) Command-line argument defaults
+	if aiTask.Spec.Image != "" {
+		image = aiTask.Spec.Image
+	} else {
+		switch aiTask.Spec.Agent {
+		case scottyv1alpha1.AgentTypeClaudeCode:
+			image = r.DefaultClaudeCodeImage
+		case scottyv1alpha1.AgentTypeOpenCode:
+			image = r.DefaultOpenCodeImage
+		default:
+			return nil, fmt.Errorf("unsupported agent type: %s", aiTask.Spec.Agent)
+		}
 	}
 
 	// Parse timeout (default to 15 minutes if not specified)

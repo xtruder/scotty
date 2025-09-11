@@ -287,6 +287,13 @@ var _ = Describe("Manager", Ordered, func() {
 
 		It("should execute AITask and create nginx deployment", func() {
 			By("applying AITask with nginx deployment creation prompt")
+
+			// Get the image from environment variable or use default
+			claudecodeImage := os.Getenv("CLAUDECODE_IMAGE")
+			if claudecodeImage == "" {
+				claudecodeImage = "ghcr.io/xtruder/scotty/claudecode:latest"
+			}
+
 			aiTaskYAML := fmt.Sprintf(`
 apiVersion: scotty.x-truder.net/v1alpha1
 kind: AITask
@@ -295,6 +302,7 @@ metadata:
   namespace: %s
 spec:
   agent: claudecode
+  image: %s
   prompt: |
     Create and apply a complete nginx deployment to Kubernetes with the following specifications:
     1. Create a Deployment named 'hello-world-nginx' with 1 replica
@@ -319,7 +327,7 @@ spec:
         
   timeout: 10m
   retryPolicy: OnFailure
-`, namespace)
+`, namespace, claudecodeImage)
 
 			// Write AITask YAML to temp file and apply
 			aiTaskFile := filepath.Join("/tmp", "aitask-e2e.yaml")

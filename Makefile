@@ -1,9 +1,8 @@
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= ghcr.io/xtruder/scotty/manager:latest
 
 # Agent image URLs
-CLAUDECODE_IMG ?= xtruder/scotty-claudecode:latest
-OPENCODE_IMG ?= xtruder/scotty-opencode:latest
+CLAUDECODE_IMG ?= ghcr.io/xtruder/scotty/claudecode:latest
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -95,7 +94,7 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 test-e2e: setup-test-e2e manifests generate fmt vet docker-build docker-build-agents ## Run the e2e tests. Expected an isolated environment using Kind.
 	$(KIND) load docker-image ${IMG} --name $(KIND_CLUSTER)
 	$(KIND) load docker-image ${CLAUDECODE_IMG} --name $(KIND_CLUSTER)
-	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
+	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) CLAUDECODE_IMAGE=${CLAUDECODE_IMG} go test -tags=e2e ./test/e2e/ -v -ginkgo.v
 	$(MAKE) cleanup-test-e2e
 
 .PHONY: cleanup-test-e2e

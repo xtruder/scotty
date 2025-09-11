@@ -86,6 +86,11 @@ spec:
                 - key
                 type: object
                 x-kubernetes-map-type: atomic
+              image:
+                description: |-
+                  Image specifies the container image to use for the AI agent
+                  If not specified, defaults to the appropriate image for the agent type
+                type: string
               imagePullPolicy:
                 default: IfNotPresent
                 description: ImagePullPolicy defines the pull policy for the AI agent
