@@ -91,18 +91,6 @@ setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
 			$(KIND) create cluster --name $(KIND_CLUSTER) ;; \
 	esac
 
-.PHONY: create-e2e-secret
-create-e2e-secret: ## Create API key secret for e2e tests
-	@if [ -z "$(ANTHROPIC_API_KEY)" ]; then \
-		echo "Error: ANTHROPIC_API_KEY not found. Please create .env file with ANTHROPIC_API_KEY=your_key"; \
-		exit 1; \
-	fi
-	@kubectl create namespace scotty-system --dry-run=client -o yaml | kubectl apply -f -
-	@kubectl create secret generic anthropic-api-key \
-		--from-literal=api-key="$(ANTHROPIC_API_KEY)" \
-		--namespace=scotty-system \
-		--dry-run=client -o yaml | kubectl apply -f -
-
 .PHONY: test-e2e
 test-e2e: setup-test-e2e manifests generate fmt vet docker-build docker-build-agents ## Run the e2e tests. Expected an isolated environment using Kind.
 	$(KIND) load docker-image ${IMG} --name $(KIND_CLUSTER)
