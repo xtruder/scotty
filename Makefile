@@ -97,13 +97,14 @@ create-e2e-secret: ## Create API key secret for e2e tests
 		echo "Error: ANTHROPIC_API_KEY not found. Please create .env file with ANTHROPIC_API_KEY=your_key"; \
 		exit 1; \
 	fi
+	@kubectl create namespace scotty-system --dry-run=client -o yaml | kubectl apply -f -
 	@kubectl create secret generic anthropic-api-key \
 		--from-literal=api-key="$(ANTHROPIC_API_KEY)" \
 		--namespace=scotty-system \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 .PHONY: test-e2e
-test-e2e: setup-test-e2e manifests generate fmt vet docker-build docker-build-agents create-e2e-secret ## Run the e2e tests. Expected an isolated environment using Kind.
+test-e2e: setup-test-e2e manifests generate fmt vet docker-build docker-build-agents ## Run the e2e tests. Expected an isolated environment using Kind.
 	$(KIND) load docker-image ${IMG} --name $(KIND_CLUSTER)
 	$(KIND) load docker-image ${CLAUDECODE_IMG} --name $(KIND_CLUSTER)
 	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v

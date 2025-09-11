@@ -131,6 +131,11 @@ type AITaskSpec struct {
 	// +optional
 	// +kubebuilder:default="OnFailure"
 	RetryPolicy RetryPolicy `json:"retryPolicy,omitempty"`
+
+	// ImagePullPolicy defines the pull policy for the AI agent container image
+	// +optional
+	// +kubebuilder:default="IfNotPresent"
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 // AITaskTriggerInfo contains information about what triggered the execution
@@ -154,6 +159,10 @@ type AITaskStatus struct {
 	// Phase indicates the current execution phase
 	// +optional
 	Phase TaskPhase `json:"phase,omitempty"`
+
+	// PrinterPrompt contains the first 30 characters of the prompt for display purposes
+	// +optional
+	PrinterPrompt string `json:"printerPrompt,omitempty"`
 
 	// TriggeredBy contains information about what triggered the current execution
 	// +optional
@@ -192,6 +201,11 @@ type AITaskStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.phase"
+// +kubebuilder:printcolumn:name="Agent",type="string",JSONPath=".spec.agent"
+// +kubebuilder:printcolumn:name="Prompt",type="string",JSONPath=".status.printerPrompt",description="Truncated prompt"
+// +kubebuilder:printcolumn:name="Started",type="date",JSONPath=".status.startTime"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // AITask is the Schema for the aitasks API
 type AITask struct {

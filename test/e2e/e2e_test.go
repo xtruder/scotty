@@ -52,8 +52,19 @@ var _ = Describe("Manager", Ordered, func() {
 	// enforce the restricted security policy to the namespace, installing CRDs,
 	// and deploying the controller.
 	BeforeAll(func() {
+		By("cleaning up existing namespace if it exists")
+		cmd := exec.Command("kubectl", "delete", "ns", namespace, "--ignore-not-found=true")
+		_, _ = utils.Run(cmd)
+
+		By("waiting for namespace deletion to complete")
+		Eventually(func(g Gomega) {
+			cmd := exec.Command("kubectl", "get", "ns", namespace)
+			_, err := utils.Run(cmd)
+			g.Expect(err).To(HaveOccurred(), "Namespace should be deleted")
+		}, 2*time.Minute).Should(Succeed())
+
 		By("creating manager namespace")
-		cmd := exec.Command("kubectl", "create", "ns", namespace)
+		cmd = exec.Command("kubectl", "create", "ns", namespace)
 		_, err := utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to create namespace")
 
@@ -67,6 +78,14 @@ var _ = Describe("Manager", Ordered, func() {
 		cmd = exec.Command("make", "install")
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to install CRDs")
+
+		By("creating API key secret")
+		apiKey := os.Getenv("ANTHROPIC_API_KEY")
+		Expect(apiKey).NotTo(BeEmpty(), "ANTHROPIC_API_KEY environment variable must be set")
+		cmd = exec.Command("kubectl", "create", "secret", "generic", "anthropic-api-key",
+			"--from-literal=api-key="+apiKey, "-n", namespace)
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to create API key secret")
 
 		By("deploying the controller-manager")
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
@@ -174,8 +193,12 @@ var _ = Describe("Manager", Ordered, func() {
 		})
 
 		It("should ensure the metrics endpoint is serving metrics", func() {
+			By("cleaning up existing metrics ClusterRoleBinding")
+			cmd := exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName, "--ignore-not-found=true")
+			_, _ = utils.Run(cmd)
+
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
-			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
+			cmd = exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
 				"--clusterrole=scotty-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
@@ -273,12 +296,13 @@ metadata:
 spec:
   agent: claudecode
   prompt: |
-    Create a complete nginx deployment with the following specifications:
-    1. Deployment named 'hello-world-nginx' with 1 replica
-    2. ConfigMap named 'hello-world-config' containing index.html with "Hello from AI-created nginx!"
+    Create and apply a complete nginx deployment to Kubernetes with the following specifications:
+    1. Create a Deployment named 'hello-world-nginx' with 1 replica
+    2. Create a ConfigMap named 'hello-world-config' containing index.html with "Hello from AI-created nginx!"
     3. Mount the ConfigMap to nginx at /usr/share/nginx/html/
     4. Use nginx:alpine image with proper security context
-    5. Add a Service named 'hello-world-service' to expose the deployment
+    5. Create a Service named 'hello-world-service' to expose the deployment
+    6. Apply all resources to the current Kubernetes cluster using kubectl
     
   apiKeySecretRef:
     name: anthropic-api-key
@@ -287,7 +311,7 @@ spec:
   permissions:
     namespacedRules:
       - apiGroups: [""]
-        resources: ["configmaps", "services"]
+        resources: ["configmaps", "services", "pods"]
         verbs: ["get", "list", "create", "update", "patch"]
       - apiGroups: ["apps"]
         resources: ["deployments"]
@@ -301,14 +325,14 @@ spec:
 			aiTaskFile := filepath.Join("/tmp", "aitask-e2e.yaml")
 			err := os.WriteFile(aiTaskFile, []byte(aiTaskYAML), os.FileMode(0o644))
 			Expect(err).NotTo(HaveOccurred())
-			
+
 			cmd := exec.Command("kubectl", "apply", "-f", aiTaskFile)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Failed to apply AITask")
 
 			By("waiting for AITask to complete")
 			verifyAITaskCompleted := func(g Gomega) {
-				cmd := exec.Command("kubectl", "get", "aitask", "e2e-nginx-test", 
+				cmd := exec.Command("kubectl", "get", "aitask", "e2e-nginx-test",
 					"-n", namespace, "-o", "jsonpath={.status.phase}")
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
@@ -321,9 +345,9 @@ spec:
 				cmd := exec.Command("kubectl", "get", "deployment", "hello-world-nginx", "-n", namespace)
 				_, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred(), "Deployment should exist")
-				
+
 				// Check deployment is ready
-				cmd = exec.Command("kubectl", "get", "deployment", "hello-world-nginx", 
+				cmd = exec.Command("kubectl", "get", "deployment", "hello-world-nginx",
 					"-n", namespace, "-o", "jsonpath={.status.readyReplicas}")
 				output, err := utils.Run(cmd)
 				g.Expect(err).NotTo(HaveOccurred())
@@ -337,7 +361,7 @@ spec:
 			Expect(err).NotTo(HaveOccurred(), "ConfigMap should exist")
 
 			// Check ConfigMap contains expected content
-			cmd = exec.Command("kubectl", "get", "configmap", "hello-world-config", 
+			cmd = exec.Command("kubectl", "get", "configmap", "hello-world-config",
 				"-n", namespace, "-o", "jsonpath={.data}")
 			output, err := utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred())
@@ -350,17 +374,17 @@ spec:
 
 			By("verifying RBAC resources were created")
 			// Check ServiceAccount
-			cmd = exec.Command("kubectl", "get", "serviceaccount", "e2e-nginx-test", "-n", namespace)
+			cmd = exec.Command("kubectl", "get", "serviceaccount", "aitask-e2e-nginx-test", "-n", namespace)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "ServiceAccount should exist")
 
 			// Check Role
-			cmd = exec.Command("kubectl", "get", "role", "e2e-nginx-test", "-n", namespace)
+			cmd = exec.Command("kubectl", "get", "role", "aitask-e2e-nginx-test", "-n", namespace)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "Role should exist")
 
 			// Check RoleBinding
-			cmd = exec.Command("kubectl", "get", "rolebinding", "e2e-nginx-test", "-n", namespace)
+			cmd = exec.Command("kubectl", "get", "rolebinding", "aitask-e2e-nginx-test", "-n", namespace)
 			_, err = utils.Run(cmd)
 			Expect(err).NotTo(HaveOccurred(), "RoleBinding should exist")
 

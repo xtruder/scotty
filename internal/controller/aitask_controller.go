@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -48,7 +49,7 @@ type AITaskReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings;clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings;clusterroles;clusterrolebindings,verbs=get;list;watch;create;update;patch;delete;escalate;bind
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -77,8 +78,19 @@ func (r *AITaskReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if aiTask.Status.Phase == "" {
 		aiTask.Status.Phase = scottyv1alpha1.TaskPhasePending
 		aiTask.Status.ExecutionCount = 0
+		aiTask.Status.PrinterPrompt = r.truncatePrompt(aiTask.Spec.Prompt)
 		if err := r.Status().Update(ctx, &aiTask); err != nil {
 			log.Error(err, "Failed to update AITask status")
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Ensure PrinterPrompt is up to date
+	expectedPrinterPrompt := r.truncatePrompt(aiTask.Spec.Prompt)
+	if aiTask.Status.PrinterPrompt != expectedPrinterPrompt {
+		aiTask.Status.PrinterPrompt = expectedPrinterPrompt
+		if err := r.Status().Update(ctx, &aiTask); err != nil {
+			log.Error(err, "Failed to update AITask PrinterPrompt")
 			return ctrl.Result{}, err
 		}
 	}
@@ -465,6 +477,12 @@ func (r *AITaskReconciler) createExecutionJob(ctx context.Context, aiTask *scott
 		backoffLimit = 3
 	}
 
+	// Set ImagePullPolicy (default to IfNotPresent if not specified)
+	imagePullPolicy := corev1.PullIfNotPresent
+	if aiTask.Spec.ImagePullPolicy != "" {
+		imagePullPolicy = aiTask.Spec.ImagePullPolicy
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -491,14 +509,20 @@ func (r *AITaskReconciler) createExecutionJob(ctx context.Context, aiTask *scott
 					RestartPolicy:      corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						{
-							Name:  "agent",
-							Image: image,
-							Args:  []string{"-p", aiTask.Spec.Prompt, "--output-format", "stream-json", "--verbose"},
-							Env:   r.buildContainerEnv(aiTask),
+							Name:            "agent",
+							Image:           image,
+							ImagePullPolicy: imagePullPolicy,
+							Args:            r.buildClaudeArgs(aiTask),
+							Env:             r.buildContainerEnv(aiTask),
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot:             &[]bool{true}[0],
-								ReadOnlyRootFilesystem:   &[]bool{true}[0],
 								AllowPrivilegeEscalation: &[]bool{false}[0],
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
+								},
 							},
 						},
 					},
@@ -552,6 +576,61 @@ func (r *AITaskReconciler) buildContainerEnv(aiTask *scottyv1alpha1.AITask) []co
 	return env
 }
 
+// buildClaudeArgs builds command line arguments for Claude Code agent
+func (r *AITaskReconciler) buildClaudeArgs(aiTask *scottyv1alpha1.AITask) []string {
+	// Build RBAC permissions info
+	rbacInfo := "RBAC Permissions:\n"
+
+	// Add namespaced permissions
+	if aiTask.Spec.Permissions.NamespacedRules != nil {
+		rbacInfo += "Namespace " + aiTask.Namespace + ":\n"
+		for _, rule := range aiTask.Spec.Permissions.NamespacedRules {
+			rbacInfo += fmt.Sprintf("- %v on %v (verbs: %v)\n", rule.APIGroups, rule.Resources, rule.Verbs)
+		}
+	}
+
+	// Add cluster permissions
+	if aiTask.Spec.Permissions.ClusterRules != nil {
+		rbacInfo += "Cluster-wide:\n"
+		for _, rule := range aiTask.Spec.Permissions.ClusterRules {
+			rbacInfo += fmt.Sprintf("- %v on %v (verbs: %v)\n", rule.APIGroups, rule.Resources, rule.Verbs)
+		}
+	}
+
+	systemPrompt := fmt.Sprintf(`You are an AI agent running as a Kubernetes service operator with goal to complete the task
+
+- Use kubectl commands to inspect and modify cluster resources.
+- You SHOULD NOT perform any unnecessary actions, do only what is required for task completion.
+- You MUST take into account RBAC permissions given to the agent.
+- Consider cluster security, resource constraints, and operational best practices.
+
+Environment:
+- Namespace: %s
+- Agent: %s
+
+%s
+`,
+		aiTask.Namespace, string(aiTask.Spec.Agent), rbacInfo)
+
+	args := []string{
+		"-p", aiTask.Spec.Prompt,
+		"--append-system-prompt", systemPrompt,
+		"--output-format", "stream-json",
+		"--verbose",
+		"--permission-mode", "bypassPermissions",
+	}
+
+	return args
+}
+
+// truncatePrompt truncates the prompt to 30 characters and appends "..." if needed
+func (r *AITaskReconciler) truncatePrompt(prompt string) string {
+	if len(prompt) <= 30 {
+		return prompt
+	}
+	return prompt[:30] + "..."
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *AITaskReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -563,5 +642,8 @@ func (r *AITaskReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Named("aitask").
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 1, // Prevent concurrent reconciliations causing race conditions
+		}).
 		Complete(r)
 }

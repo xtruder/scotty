@@ -14,7 +14,24 @@ spec:
     singular: aitask
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Status
+      type: string
+    - jsonPath: .spec.agent
+      name: Agent
+      type: string
+    - description: Truncated prompt
+      jsonPath: .status.printerPrompt
+      name: Prompt
+      type: string
+    - jsonPath: .status.startTime
+      name: Started
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: AITask is the Schema for the aitasks API
@@ -69,6 +86,11 @@ spec:
                 - key
                 type: object
                 x-kubernetes-map-type: atomic
+              imagePullPolicy:
+                default: IfNotPresent
+                description: ImagePullPolicy defines the pull policy for the AI agent
+                  container image
+                type: string
               permissions:
                 description: Permissions specify the Kubernetes RBAC permissions for
                   the AI agent
@@ -365,6 +387,10 @@ spec:
                 - Running
                 - Completed
                 - Failed
+                type: string
+              printerPrompt:
+                description: PrinterPrompt contains the first 30 characters of the
+                  prompt for display purposes
                 type: string
               result:
                 description: Result contains the output from the AI agent execution

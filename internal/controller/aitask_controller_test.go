@@ -167,6 +167,9 @@ var _ = Describe("AITask Controller", func() {
 
 			By("Verifying execution count is initialized")
 			Expect(aiTask.Status.ExecutionCount).To(Equal(int32(0)))
+
+			By("Verifying PrinterPrompt is set correctly")
+			Expect(aiTask.Status.PrinterPrompt).To(Equal("Analyze the cluster and provid..."))
 		})
 
 		It("should create a Job when AITask is in Pending phase", func() {
@@ -311,7 +314,15 @@ var _ = Describe("AITask Controller", func() {
 			Expect(container.Image).To(Equal("xtruder/scotty-claudecode:latest"))
 
 			By("Verifying command arguments")
-			Expect(container.Args).To(Equal([]string{"-p", "Analyze the cluster and provide recommendations", "--output-format", "stream-json", "--verbose"}))
+			args := container.Args
+			Expect(args).To(ContainElement("-p"))
+			Expect(args).To(ContainElement("Analyze the cluster and provide recommendations"))
+			Expect(args).To(ContainElement("--output-format"))
+			Expect(args).To(ContainElement("stream-json"))
+			Expect(args).To(ContainElement("--verbose"))
+			Expect(args).To(ContainElement("--permission-mode"))
+			Expect(args).To(ContainElement("bypassPermissions"))
+			Expect(args).To(ContainElement("--append-system-prompt"))
 
 			By("Verifying environment variables")
 			envMap := make(map[string]string)
