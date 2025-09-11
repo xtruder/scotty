@@ -1,0 +1,70 @@
+apiVersion: scotty.x-truder.net/v1alpha1
+kind: AITask
+metadata:
+  labels:
+    app.kubernetes.io/name: scotty
+    app.kubernetes.io/managed-by: kustomize
+  name: optimize-resources
+spec:
+  # AI agent to use for task execution
+  agent: claudecode
+  
+  # Task description for the AI agent - focuses on taking action, not just recommendations
+  prompt: |
+    Analyze the cluster resource usage and automatically optimize deployments by:
+    
+    1. Adjusting CPU/memory requests and limits based on actual usage patterns
+    2. Scaling down over-provisioned workloads 
+    3. Identifying pods that can be consolidated
+    4. Applying the optimizations directly to improve cluster efficiency
+    
+    Focus on taking concrete actions rather than just providing recommendations.
+  
+  # Secret containing the ANTHROPIC_API_KEY
+  apiKeySecretRef:
+    name: anthropic-api-key
+    key: api-key
+  
+  # Event-based triggers (optional)
+  triggers:
+    - eventType: pod-failed
+      selector:
+        matchLabels:
+          app: web-server
+      debounce: 5m
+    - eventType: pod-oom-killed
+      selector:
+        matchLabels:
+          tier: backend
+      namespaces:
+        - production
+      debounce: 10m
+  
+  # Kubernetes RBAC permissions for the AI agent to read AND modify resources
+  permissions:
+    # Namespaced permissions (creates Role + RoleBinding)
+    namespacedRules:
+      - apiGroups: [""]
+        resources: ["pods", "events"]
+        verbs: ["get", "list", "describe"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "replicasets"]
+        verbs: ["get", "list", "update", "patch"]
+      - apiGroups: ["autoscaling"]
+        resources: ["horizontalpodautoscalers"]
+        verbs: ["get", "list", "create", "update", "patch"]
+    
+    # Cluster-wide permissions (creates ClusterRole + ClusterRoleBinding)
+    clusterRules:
+      - apiGroups: [""]
+        resources: ["nodes"]
+        verbs: ["get", "list", "describe"]
+      - apiGroups: ["metrics.k8s.io"]
+        resources: ["pods", "nodes"]
+        verbs: ["get", "list"]
+  
+  # Maximum execution time (default: 15m)
+  timeout: 30m
+  
+  # Retry policy for failed executions (default: OnFailure)
+  retryPolicy: OnFailure

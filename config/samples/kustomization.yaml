@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- scotty_v1alpha1_aitask.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

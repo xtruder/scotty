@@ -1,0 +1,29 @@
+# This rule is not used by the project scotty itself.
+# It is provided to allow the cluster admin to help manage permissions for users.
+#
+# Grants read-only access to scotty.x-truder.net resources.
+# This role is intended for users who need visibility into these resources
+# without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: scotty
+    app.kubernetes.io/managed-by: kustomize
+  name: aitask-viewer-role
+rules:
+- apiGroups:
+  - scotty.x-truder.net
+  resources:
+  - aitasks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - scotty.x-truder.net
+  resources:
+  - aitasks/status
+  verbs:
+  - get
