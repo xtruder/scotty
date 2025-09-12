@@ -190,7 +190,7 @@ undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.
 
 .PHONY: presentation
 presentation: ## Generate presentation PDF
-	npx @marp-team/marp-cli@latest -w PRESENTATION.md
+	npx @marp-team/marp-cli@latest -w docs/slides.md -o docs/index.html
 
 ##@ Dependencies
 
