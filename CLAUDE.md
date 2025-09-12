@@ -131,7 +131,7 @@ status:
 ## Development Commands
 
 ```bash
-# Project initialization
+# Object initialization
 kubebuilder init --domain x-truder.net --repo github.com/offlinehq/scotty
 kubebuilder create api --group scotty --version v1alpha1 --kind AITask
 

@@ -1,9 +1,63 @@
-# Kubernetes Operators: From Basics to AI-Powered Automation
+---
+marp: true
+theme: uncover
+style: |
+  section {
+    font-size: 34px;
+    background-color: #ccc;
+  }
 
-## Slide 1: What is a Kubernetes Operator?
+  section.align-center {
+    text-align: center;
+  }
 
-### Definition
-A Kubernetes Operator is a method of packaging, deploying, and managing a Kubernetes application using custom resources and controllers that extend the Kubernetes API.
+  div.twocols {
+    margin-top: 35px;
+    display: flex;
+    gap: 40px;
+  }
+  div.twocols > * {
+    flex: 1;
+    margin-top: 0;
+    padding-top: 0;
+  }
+  div.twocols p:first-child,
+  div.twocols h1:first-child,
+  div.twocols h2:first-child,
+  div.twocols ul:first-child,
+  div.twocols ul li:first-child,
+  div.twocols ul li p:first-child {
+    margin-top: 0 !important;
+  }
+  div.twocols p.break {
+    display: none; /* Not needed with flexbox */
+  }
+
+paginate: true
+---
+
+# Patterns for building Kubernetes Operators
+
+#### From Basics to AI-Powered Automation
+
+Jaka Hudoklin / [@offlinehacker](https://x.com/offlinehacker) / [Raven.io](https://raven.io)
+
+---
+
+## What is a Kubernetes Operator?
+
+##### **Operator** extends Kubernetes with application-specific logic
+
+- **Managing Custom Resources**
+  Defines and controls custom kubernetes objects using CRDs
+- **Encoding Domain Logic**
+  Implements custom logic atop kubernetes (backup, upgrade, scaling strategies)
+- **Automating Complex Workflows**
+  Handles orchestration of complex workflows to manage application lifecycle
+
+- **Examples**: ArgoCD, cert-manager
+
+---
 
 ### Key Concepts
 - **Custom Resource (CR)**: Domain-specific objects that extend Kubernetes API
@@ -11,9 +65,12 @@ A Kubernetes Operator is a method of packaging, deploying, and managing a Kubern
 - **Controller**: Control loop that watches for changes and reconciles desired vs actual state
 - **Operator Pattern**: Combines CRDs + Controllers + Domain Knowledge
 
-## Slide 2: Why Operators?
+---
 
-### Traditional vs Operator Approach
+## Why Operators?
+
+<div class="twocols">
+<div>
 
 **Traditional Deployment:**
 ```bash
@@ -22,6 +79,9 @@ kubectl apply -f service.yaml
 kubectl apply -f configmap.yaml
 # Manual scaling, updates, backups...
 ```
+
+</div>
+<div>
 
 **Operator Approach:**
 ```yaml
@@ -36,17 +96,22 @@ spec:
     schedule: "0 2 * * *"
 ```
 
+</div>
+</div>
+
 ### Benefits
 - **Automation**: Codifies operational knowledge
 - **Self-healing**: Automatically recovers from failures
 - **Day-2 Operations**: Handles updates, scaling, backups
 - **Declarative**: Describe desired state, not procedures
 
+---
+
 ## Slide 3: Operator Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   kubectl apply │───▶│  Kubernetes API  │───▶│ Custom Resource │
+│   kubectl apply │──▶│  Kubernetes API │───▶│ Custom Resource │
 │   my-app.yaml   │    │     Server       │    │   (Stored in    │
 └─────────────────┘    └──────────────────┘    │     etcd)       │
                                 ▲              └─────────────────┘
@@ -196,12 +261,12 @@ spec:
 ### Solution: Scotty Operator
 ```yaml
 apiVersion: scotty.x-truder.net/v1alpha1
-kind: AITask
+kind: AITas
 metadata:
   name: optimize-resources
 spec:
   agent: claudecode
-  prompt: "Analyze pod resource usage and suggest optimizations"
+  prompt: "Analyze pod resource usage and suggest optimizationsL
   permissions:
     - apiGroups: [""]
       resources: ["pods", "nodes"]
