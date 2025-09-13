@@ -51,13 +51,27 @@ paginate: true
 # Patterns for building
 # `Kubernetes Operators`
 
-#### From Basics to your custom cluster Automation
+#### A Deep Dive with Kubebuilder and Go
+
+<sub>@DevOpsDays 2025</sub>
+
+---
+
+<style scoped>
+  p { text-align: left; }
+  p:last-of-type { text-align: center; }
+</style>
+
+## About Me
+
+🛡️ Senior Engineer building eBPF-powered app security  
+🔐 Previously worked in crypto, current Linux kernel whisperer  
+🚀 LockedShields participant & self-proclaimed hacker  
+🤖 AI enthusiast
 
 </br>
 
-👨🏻‍💻 Jaka Hudoklin / 𝕏 [@offlinehacker](https://x.com/offlinehacker) / 👷🏼 [Raven.io](https://raven.io)
-
-<sub>@DevOpsDays 2025</sub>
+𝕏 [@offlinehacker](https://x.com/offlinehacker) / [github.com/xtruder](https://github.com/xtruder) / 👷🏼 [Raven.io](https://raven.io)
 
 ---
 
@@ -97,9 +111,9 @@ p, h3, h4, h5, h6, li {
 
 **Traditional Deployment:**
 ```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
 kubectl apply -f configmap.yaml
+kubectl apply -f statefulset.yaml
+kubectl apply -f service.yaml
 # Manual scaling, updates, backups...
 ```
 
@@ -151,11 +165,13 @@ spec:
 
 <style scoped>p, h2 { text-align: left; }</style>
 
-![bg left:33%](scotty/beam-me-up-scotty.jpg)
+![bg left:33%](beam-me-up-scotty.jpg)
 
 ## Introducing Scotty
 
-Operator that executes AI agents to perform various tasks in kubernetes cluster.
+Operator that **executes AI agents to perform various tasks** in kubernetes cluster.
+
+We all know it's a crazy idea to give AI acess to kubernetes, but someone has to do it!
 
 ---
 
@@ -221,7 +237,7 @@ spec:
 ┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
 │   kubectl apply │--->│  Kubernetes API  │<---│   Agent Job      │
 │   ai-task.yaml  │    │     Server       │    │ (claude/openai)  │
-└─────────────────┘    │  1. Register CRD │    └──────────────────┘
+└─────────────────┘    │  1. AITask CRD   │    └──────────────────┘
                        │  2. Store CR     │               ^
                        └──────────────────┘               │
                                  ^     │                  │
@@ -237,7 +253,7 @@ spec:
 
 ---
 
-![bg right:66%](scotty/star-trek-enterprise.jpg)
+![bg right:66%](star-trek-enterprise.jpg)
 
 # Let's build it!
 
@@ -609,7 +625,7 @@ make test-e2e
 make deploy
 
 # Create AITask
-kubectl apply -f examples/resource-analysis-task.yaml
+kubectl apply -f config/samples/scotty_v1alpha1_aitask.demo.yaml 
 
 # Watch progress
 kubectl get aitasks -n scotty-system -w

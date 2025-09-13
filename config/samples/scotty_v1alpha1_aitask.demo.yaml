@@ -1,0 +1,31 @@
+apiVersion: scotty.x-truder.net/v1alpha1
+kind: AITask
+metadata:
+  name: e2e-nginx-test
+  namespace: scotty-system
+spec:
+  agent: claudecode
+  prompt: |
+    Create and apply a complete nginx deployment to Kubernetes with the following specifications:
+    1. Create a Deployment named 'hello-world-nginx' with 1 replica
+    2. Create a ConfigMap named 'hello-world-config' containing index.html with "Hello from AI-created nginx!"
+    3. Mount the ConfigMap to nginx at /usr/share/nginx/html/
+    4. Use nginx:alpine image with proper security context
+    5. Create a Service named 'hello-world-service' to expose the deployment
+    6. Apply all resources to the current Kubernetes cluster using kubectl
+    
+  apiKeySecretRef:
+    name: anthropic-api-key
+    key: api-key
+    
+  permissions:
+    namespacedRules:
+      - apiGroups: [""]
+        resources: ["configmaps", "services", "pods"]
+        verbs: ["get", "list", "create", "update", "patch"]
+      - apiGroups: ["apps"]
+        resources: ["deployments"]
+        verbs: ["get", "list", "create", "update", "patch"]
+        
+  timeout: 10m
+  retryPolicy: OnFailure
